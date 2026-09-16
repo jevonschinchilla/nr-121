@@ -4,7 +4,7 @@
 (function (root) {
   'use strict';
   var NBIS = {};
-  NBIS.CORE_VERSION = '1.0.0';
+  NBIS.CORE_VERSION = '1.0.1';
 
   /* ---------- Random helpers ---------- */
   function mulberry32(seed) {
@@ -78,19 +78,49 @@
   }
 
   /* ---------- Numeric parsing ---------- */
-  function parseNumber(s) {
-    if (s === null || s === undefined) return null;
+  var SUFFIX_MULT = { k: 1e3, m: 1e6, bn: 1e9 };
+  /* Magnitude carried by a unit label (after currency symbols and spaces are removed): k, kW = 1e3; m, mn, MW = 1e6; bn, b, GW = 1e9. */
+  var UNIT_MAGNITUDE = { k: 1e3, kw: 1e3, m: 1e6, mn: 1e6, mw: 1e6, bn: 1e9, b: 1e9, gw: 1e9 };
+  function cleanNumeric(s) {
     var t = String(s).trim().toLowerCase();
     t = t.replace(/[\s,]/g, '');
     t = t.replace(/[$\u00a3\u20ac\u00a5]/g, '');
     t = t.replace(/%$/, '');
+    return t;
+  }
+  function unitMagnitude(unit) {
+    if (typeof unit !== 'string') return null;
+    var u = cleanNumeric(unit);
+    return Object.prototype.hasOwnProperty.call(UNIT_MAGNITUDE, u) ? UNIT_MAGNITUDE[u] : null;
+  }
+  /* Parses a typed numeric answer against an optional unit label. Returns null when unparseable, otherwise
+     { value, mantissa, suffix, unit_typed } where value is expressed in the item's unit:
+     no suffix: the number as typed; suffix with a unit that carries a magnitude: converted into that unit
+     (250m against $m = 250; 0.25bn against $m = 250); suffix with a unit that carries no magnitude: the suffix
+     is an absolute multiplier (51.4k against GPUs = 51,400). A trailing copy of the unit label is accepted. */
+  function parseAnswer(s, unit) {
+    if (s === null || s === undefined) return null;
+    var t = cleanNumeric(s);
+    var u = typeof unit === 'string' ? cleanNumeric(unit) : '';
+    var unitTyped = false;
+    if (u && t.length > u.length && t.slice(-u.length) === u) { t = t.slice(0, -u.length); unitTyped = true; }
     var m = /^(-?)(\d+\.?\d*|\.\d+)(k|m|bn)?$/.exec(t);
     if (!m) return null;
     var v = parseFloat(m[2]);
     if (!isFinite(v)) return null;
     if (m[1] === '-') v = -v;
-    var mult = { k: 1e3, m: 1e6, bn: 1e9 }[m[3]] || 1;
-    return v * mult;
+    var suffix = m[3] || null;
+    var mag = unitMagnitude(unit);
+    var value;
+    if (!suffix) value = v;
+    else if (mag) value = v * SUFFIX_MULT[suffix] / mag;
+    else value = v * SUFFIX_MULT[suffix];
+    return { value: value, mantissa: v, suffix: suffix, unit_typed: unitTyped };
+  }
+  /* Unit-less parse: suffixes act as absolute multipliers (5.75bn = 5,750,000,000). */
+  function parseNumber(s) {
+    var p = parseAnswer(s, null);
+    return p ? p.value : null;
   }
 
   /* ---------- Scorers ---------- */
@@ -161,14 +191,15 @@
   }
 
   function scoreNumeric(item, answer) {
-    var v = parseNumber(answer);
-    if (v === null) return { correct: false, parsed: null };
+    var p = parseAnswer(answer, item.unit);
+    if (!p) return { correct: false, parsed: null };
+    var v = p.value;
     var diff = Math.abs(v - item.value);
     var eps = 1e-9 * Math.max(1, Math.abs(item.value));
     var ok = false;
     if (typeof item.tolerance_abs === 'number') ok = ok || diff <= item.tolerance_abs + eps;
     if (typeof item.tolerance_pct === 'number') ok = ok || diff <= Math.abs(item.value) * item.tolerance_pct / 100 + eps;
-    return { correct: ok, parsed: v, diff: diff };
+    return { correct: ok, parsed: v, diff: diff, suffix: p.suffix, unit_typed: p.unit_typed };
   }
 
   function sortedNums(a) { return a.slice().sort(function (x, y) { return x - y; }); }
@@ -487,7 +518,7 @@
     if (!isStr(it.stem)) e('stem missing');
     if (!isStr(it.explanation)) e('explanation missing');
     if (!isStr(it.source)) e('source missing');
-    if (!(it.as_of === null || (typeof it.as_of === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(it.as_of)))) e('as_of must be an ISO date or null');
+    if (!(it.as_of === null || (typeof it.as_of === 'string' && /^\d{4}(-\d{2}(-\d{2})?)?$/.test(it.as_of)))) e('as_of must be YYYY-MM-DD, YYYY-MM, YYYY or null');
     if (typeof it.time_sensitive !== 'boolean') e('time_sensitive must be boolean');
     if ([1, 2, 3].indexOf(it.difficulty) < 0) e('difficulty must be 1, 2 or 3');
     if (!isStr(it.topic)) e('topic missing');
@@ -634,6 +665,8 @@
   NBIS.normalise = normalise;
   NBIS.dlDistance = dlDistance;
   NBIS.parseNumber = parseNumber;
+  NBIS.parseAnswer = parseAnswer;
+  NBIS.unitMagnitude = unitMagnitude;
   NBIS.scoreRecall = scoreRecall;
   NBIS.scoreDefine = scoreDefine;
   NBIS.scoreNumeric = scoreNumeric;

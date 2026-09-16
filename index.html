@@ -234,7 +234,7 @@ hr { border: 0; border-top: 1.5px solid var(--line); margin: 16px 0; }
 <script>
 (function () {
 'use strict';
-var APP_VERSION = '1.0.0';
+var APP_VERSION = '1.0.1';
 var STORAGE_KEY = 'nbis.progress.v1';
 var MODULE_FALLBACK = { 11: 'Excel capstone' };
 var TYPE_LABEL = { mcq: 'Multiple choice', recall: 'Recall', define: 'Define', numeric: 'Numeric', sequence: 'Sequence', slot: 'Complete the diagram', match: 'Match', classify: 'Classify' };
@@ -499,7 +499,7 @@ function widgetText(it, pres, host) {
   var input = isDefine
     ? h('textarea', { class: 'answer', rows: '3', autocomplete: 'off', autocorrect: 'off', autocapitalize: 'off', spellcheck: 'false', 'aria-label': 'Your answer', placeholder: 'One or two sentences' })
     : h('input', { class: 'answer', type: 'text', autocomplete: 'off', autocorrect: 'off', autocapitalize: 'off', spellcheck: 'false', 'aria-label': 'Your answer',
-        inputmode: isNum ? 'decimal' : 'text', enterkeyhint: isDefine ? 'done' : 'go', placeholder: isNum ? 'Number' : 'Answer' });
+        inputmode: isNum ? 'decimal' : 'text', enterkeyhint: isDefine ? 'done' : 'go', placeholder: isNum ? (it.unit ? 'Number in ' + it.unit : 'Number') : 'Answer' });
   input.value = d.text;
   input.addEventListener('input', function () { d.text = input.value; saveProgress(); });
   input.addEventListener('keydown', function (e) {

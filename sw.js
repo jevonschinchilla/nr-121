@@ -1,5 +1,5 @@
 /* NBIS service worker. Change VERSION whenever index.html, nbis_core.js or this file changes. */
-var VERSION = '1.0.0';
+var VERSION = '1.0.1';
 var CACHE = 'nbis-' + VERSION;
 var ASSETS = [
   './', './index.html', './nbis_core.js', './manifest.webmanifest', './icon-180.png',
