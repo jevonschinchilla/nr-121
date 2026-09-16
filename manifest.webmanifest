@@ -1,0 +1,14 @@
+{
+  "name": "Nebius Revision",
+  "short_name": "Revision",
+  "description": "Timed flashcard sessions for the Nebius pre-start curriculum.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#000000",
+  "theme_color": "#1a3f9a",
+  "icons": [
+    { "src": "icon-180.png", "sizes": "180x180", "type": "image/png", "purpose": "any" }
+  ]
+}
